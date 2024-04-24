@@ -5,7 +5,7 @@
 
 // Приватные методы
 
-Node* BinarySearchTree::insertRecursive(Node* root, int data, int size) {
+Node* BinarySearchTree::insertRecursive(Node* root, char data, int size) {
     if (root == nullptr)
         return new Node(data, size);
 
@@ -24,7 +24,7 @@ Node* BinarySearchTree::insertRecursive(Node* root, int data, int size) {
     return root;
 }
 
-Node* BinarySearchTree::deleteRecursive(Node* root, int data) {
+Node* BinarySearchTree::deleteRecursive(Node* root, char data) {
     if (root == nullptr)
         return root;
 
@@ -80,35 +80,110 @@ void BinarySearchTree::concatRecursive(Node* root1, Node* root2) {
     concatRecursive(root1, root2->right);
 }
 
-void BinarySearchTree::eraseFromPosition(Node*& root, int p) {
+void BinarySearchTree::eraseFromPosition(Node*& root, int p1, int p2) {
     if (root == nullptr)
         return;
 
-    if (p <= root->subtreeSize) {
-        erase(root->data);
+    // Удаляем узлы, начиная с позиции p1 до позиции p2
+    if (root->subtreeSize >= p1 && root->subtreeSize <= p2) {
+        root = deleteRecursive(root, root->data); // Удаляем текущий узел
         return;
     }
 
-    eraseFromPosition(root->right, p - (root->left ? root->left->subtreeSize : 0) - 1);
+    // Если текущий узел не в диапазоне, рекурсивно вызываем для правого поддерева
+    if (root->subtreeSize < p1)
+        eraseFromPosition(root->right, p1 - root->subtreeSize, p2 - root->subtreeSize);
+        // Если текущий узел в диапазоне, рекурсивно вызываем для обоих поддеревьев
+    else if (root->subtreeSize > p2) {
+        eraseFromPosition(root->left, p1, p2);
+        eraseFromPosition(root->right, p1, p2);
+    }
 }
+
+void BinarySearchTree::copyRecursive(Node*& dest, Node* source) {
+    if (source == nullptr)
+        return;
+
+    // Копируем узел из второго дерева
+    dest = new Node(source->data, source->subtreeSize);
+
+    // Рекурсивно копируем левое и правое поддерево
+    copyRecursive(dest->left, source->left);
+    copyRecursive(dest->right, source->right);
+}
+
+void BinarySearchTree::eraseSubtree(Node*& node, Node* otherNode) {
+    if (otherNode == nullptr) {
+        return;
+    }
+
+    eraseSubtree(node, otherNode->left);
+    eraseSubtree(node, otherNode->right);
+
+    eraseRecursive(node, otherNode->data);
+}
+
+void BinarySearchTree::eraseRecursive(Node*& node, int data) {
+    if (node == nullptr) {
+        return;
+    }
+
+    if (data < node->data) {
+        eraseRecursive(node->left, data);
+    } else if (data > node->data) {
+        eraseRecursive(node->right, data);
+    } else {
+        // Нашли узел для удаления
+        Node* temp = node;
+        if (node->left == nullptr) {
+            node = node->right;
+            delete temp;
+        } else if (node->right == nullptr) {
+            node = node->left;
+            delete temp;
+        } else {
+            // Узел имеет двух потомков
+            Node* minRight = findMin(node->right);
+            node->data = minRight->data;
+            eraseRecursive(node->right, minRight->data);
+        }
+    }
+}
+
+Node* BinarySearchTree::findMin(Node* node) const {
+    if (node == nullptr) {
+        return nullptr;
+    }
+    while (node->left != nullptr) {
+        node = node->left;
+    }
+    return node;
+}
+
 
 // Публичные методы
 
-void BinarySearchTree::insert(int data, int size) {
+void BinarySearchTree::insert(char data, int size) {
     root = insertRecursive(root, data, size);
 }
 
-void BinarySearchTree::erase(int data) {
-    root = deleteRecursive(root, data);
+void BinarySearchTree::erase(int p1, int p2) {
+    eraseFromPosition(root, p1, p2);
 }
+
+void BinarySearchTree::erase(const BinarySearchTree& other) {
+    eraseSubtree(root, other.root);
+}
+
+
 
 void BinarySearchTree::concat(BinarySearchTree& tree2) {
     concatRecursive(root, tree2.root);
 }
 
 void BinarySearchTree::change(int p, BinarySearchTree& tree2) {
-    eraseFromPosition(root, p);
-    concatRecursive(root, tree2.root);
+    eraseFromPosition(root, p, p + tree2.root->subtreeSize - 1); // Удаляем элементы, начиная с позиции p
+    copyRecursive(root, tree2.root); // Копируем элементы из второго дерева
 }
 
 void BinarySearchTree::printInorder(Node* node) {
@@ -122,5 +197,15 @@ void BinarySearchTree::printInorder(Node* node) {
 void BinarySearchTree::printTree() {
     printInorder(root);
     std::cout << std::endl;
+}
+
+int BinarySearchTree::subtreeSize(Node* root) const {
+    if (root == nullptr)
+        return 0;
+    return root->subtreeSize;
+}
+
+int BinarySearchTree::getSize() const {
+    return subtreeSize(root);
 }
 
